@@ -9,17 +9,17 @@ class SELU(mx.operator.CustomOp):
 
     def forward(self, is_train, req, in_data, out_data, aux):
         x = in_data[0]
-        xp = (x + mx.nd.abs(x)) / 2
-        xn = x - xp
-        y = self.scale * (self.alpha * (mx.nd.exp(xn) - 1) + xp)
+        x_pos = (x + mx.nd.abs(x)) / 2
+        x_neg = x - x_pos
+        y = self.scale * (self.alpha * (mx.nd.exp(x_neg) - 1) + x_pos)
         self.assign(out_data[0], req[0], y)
         
     def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
         x = in_data[0]
-        tg = out_grad[0]
+        top_grad = out_grad[0]
         pos = (x >= 0)
-        xn = (x - mx.nd.abs(x)) / 2
-        in_grad[0][:] = (self.scale * ((1 - self.alpha) * pos + self.alpha * mx.nd.exp(xn))) * tg
+        x_neg = (x - mx.nd.abs(x)) / 2
+        in_grad[0][:] = (self.scale * ((1 - self.alpha) * pos + self.alpha * mx.nd.exp(x_neg))) * top_grad
 
 @mx.operator.register("selu")
 class SELUProp(mx.operator.CustomOpProp):
@@ -48,3 +48,6 @@ if __name__ == '__main__':
     net = mx.symbol.FullyConnected(data=data,name="fc1",num_hidden=2)
     net = mx.sym.Custom(net, name = 'snn1', op_type = 'selu')
     net = mx.sym.LogisticRegressionOutput(data=net, name = 'lr')
+    
+    inter=net.get_internals()
+    print(inter.list_outputs())
